@@ -24,6 +24,19 @@
 
 <!-- Main Content -->
 <div class="max-w-7xl mx-auto">
+    @if (string.Equals(Context.Session.GetString("UserRole"), "User", StringComparison.OrdinalIgnoreCase))
+    {
+        <div class="mb-6 rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50 px-5 py-4 shadow-sm">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-blue-700">Individual profile ranking</p>
+                    <p class="text-sm text-blue-900/80">Your tasks are now scored with the knapsack-based priority model.</p>
+                </div>
+                <span class="inline-flex w-fit rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-700 shadow-sm">Live score visible on each task</span>
+            </div>
+        </div>
+    }
+
     <!-- Header -->
     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
         <div class="mb-4 lg:mb-0">
@@ -238,6 +251,12 @@
                                 ${task.dueDate ? formatDate(task.dueDate) : 'No due date'}
                             </span>
                         </div>
+                        ${task.score !== undefined && task.score !== null ? `
+                            <div class="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+                                <i class="fas fa-bullseye"></i>
+                                <span>Score ${formatScore(task.score)}</span>
+                            </div>
+                        ` : ''}
                         ${task.createdAt ? `
                             <div class="flex items-center gap-1">
                                 <i class="fas fa-clock"></i>
@@ -430,6 +449,15 @@
                 month: 'short',
                 day: 'numeric'
             });
+        }
+
+        function formatScore(score) {
+            const value = Number(score);
+            if (Number.isNaN(value)) {
+                return '--';
+            }
+
+            return value.toFixed(2);
         }
     </script>
 }

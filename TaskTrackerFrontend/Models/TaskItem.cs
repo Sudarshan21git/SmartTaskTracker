@@ -18,5 +18,9 @@ namespace TaskTrackerFrontend.Models
         public DateTime? DueDate { get; set; }
 
         public int UserId { get; set; }
+
+        public double? Score { get; set; }
+
+        public int? EstimatedMinutes { get; set; }
     }
 }

@@ -199,6 +199,41 @@ public class TasksController : ControllerBase
             });
         }
     }
+
+    [HttpPost("daily-schedule")]
+    public async Task<ActionResult<ApiResponse<DailyScheduleResponse>>> GenerateDailySchedule([FromBody] DailyScheduleRequest request)
+    {
+        try
+        {
+            if (request.AvailableMinutes <= 0)
+            {
+                return BadRequest(new ApiResponse<DailyScheduleResponse>
+                {
+                    Success = false,
+                    Message = "Available minutes must be greater than zero"
+                });
+            }
+
+            var schedule = await _taskService.GenerateDailyScheduleAsync(request.UserId, request.AvailableMinutes);
+
+            return Ok(new ApiResponse<DailyScheduleResponse>
+            {
+                Success = true,
+                Message = schedule.ScheduledTasks.Count == 0
+                    ? "No tasks could be scheduled for the available time"
+                    : "Daily schedule generated successfully",
+                Data = schedule
+            });
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, new ApiResponse<DailyScheduleResponse>
+            {
+                Success = false,
+                Message = "Error generating daily schedule"
+            });
+        }
+    }
 }
 
 public class UpdateStatusRequest

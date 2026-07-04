@@ -45,6 +45,10 @@ namespace TaskTrackerAPI.Data
                 .HasDefaultValueSql("GETUTCDATE()");
 
             modelBuilder.Entity<PersonalTask>()
+                .Property(t => t.EstimatedMinutes)
+                .HasDefaultValue(60);
+
+            modelBuilder.Entity<PersonalTask>()
                 .HasOne(t => t.User)
                 .WithMany(u => u.Tasks)
                 .HasForeignKey(t => t.UserId)

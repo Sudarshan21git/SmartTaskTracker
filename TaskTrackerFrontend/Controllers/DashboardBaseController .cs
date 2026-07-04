@@ -164,6 +164,7 @@ namespace TaskTrackerFrontend.Controllers
                     Priority = model.Priority,
                     Status = model.Status,
                     DueDate = model.DueDate,
+                    EstimatedMinutes = model.EstimatedMinutes,
                     UserId = HttpContext.Session.GetInt32("UserId") ?? 0,
                     CreatedAt = DateTime.UtcNow
                 };

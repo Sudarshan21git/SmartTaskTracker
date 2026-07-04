@@ -11,5 +11,6 @@ namespace TaskTrackerAPI.Services
         Task<PersonalTask> CreateTaskAsync(PersonalTask task);
         Task<PersonalTask?> UpdateTaskAsync(PersonalTask task);
         Task<bool> DeleteTaskAsync(int id);
+        Task<DailyScheduleResponse> GenerateDailyScheduleAsync(int userId, int availableMinutes);
     }
 }

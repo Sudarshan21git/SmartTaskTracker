@@ -16,6 +16,8 @@ namespace TaskTrackerAPI.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? DueDate { get; set; }
+`
+        public int? EstimatedMinutes { get; set; }
 
         public TaskStatus Status { get; set; } = TaskStatus.Pending;
 

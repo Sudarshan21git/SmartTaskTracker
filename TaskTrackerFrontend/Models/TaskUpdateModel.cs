@@ -21,6 +21,9 @@ namespace TaskTrackerFrontend.Models
         [DataType(DataType.Date)]
         public DateTime DueDate { get; set; }
 
+        [Range(1, 24 * 60, ErrorMessage = "Estimated time must be at least 1 minute")]
+        public int EstimatedMinutes { get; set; } = 60;
+
         [Required(ErrorMessage = "Status is required")]
         public int Status { get; set; }
 

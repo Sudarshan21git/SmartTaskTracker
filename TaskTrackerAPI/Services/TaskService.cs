@@ -11,7 +11,16 @@ namespace TaskTrackerAPI.Services
 {
     public class TaskService : ITaskService
     {
+        private const int IndividualKnapsackCapacity = 5;
+        private const int DefaultEstimatedMinutes = 60;
         private readonly AppDbContext _context;
+
+        private sealed class ScheduleCandidate
+        {
+            public PersonalTask Task { get; init; } = default!;
+            public int EstimatedMinutes { get; init; }
+            public double Score { get; init; }
+        }
 
         public TaskService(AppDbContext context)
         {
@@ -31,9 +40,24 @@ namespace TaskTrackerAPI.Services
 
         public async Task<PersonalTask> CreateTaskAsync(PersonalTask task)
         {
+            if (task.EstimatedMinutes == null || task.EstimatedMinutes <= 0)
+            {
+                task.EstimatedMinutes = DefaultEstimatedMinutes;
+            }
+
+            _context.Tasks.Add(task);
+            await _context.SaveChangesAsync();
+
+            if (await IsIndividualProfileAsync(task.UserId))
+            {
+                await RecalculateAllIncompleteTaskScores(task.UserId, useKnapsack: true);
+
+                var createdTask = await _context.Tasks.FindAsync(task.Id);
+                return createdTask ?? task;
+            }
+
             var userTasks = await GetUserTasksAsync(task.UserId);
             task.Score = CalculateExactPriorityScore(task, userTasks);
-            _context.Tasks.Add(task);
             await _context.SaveChangesAsync();
             return task;
         }
@@ -50,8 +74,19 @@ namespace TaskTrackerAPI.Services
             existingTask.Title = task.Title;
             existingTask.Description = task.Description;
             existingTask.DueDate = task.DueDate;
+            existingTask.EstimatedMinutes = task.EstimatedMinutes > 0 ? task.EstimatedMinutes : DefaultEstimatedMinutes;
             existingTask.Status = task.Status;
             existingTask.Priority = task.Priority;
+
+            var isIndividualProfile = await IsIndividualProfileAsync(existingTask.UserId);
+
+            if (isIndividualProfile)
+            {
+                await _context.SaveChangesAsync();
+                await RecalculateAllIncompleteTaskScores(existingTask.UserId, useKnapsack: true);
+
+                return await _context.Tasks.FindAsync(existingTask.Id);
+            }
 
             // ---------- SCORE LOGIC ----------
             var userTasks = await GetUserTasksAsync(existingTask.UserId);
@@ -128,10 +163,24 @@ namespace TaskTrackerAPI.Services
         }
 
         // Recalculate all incomplete tasks for a user
-        private async Task RecalculateAllIncompleteTaskScores(int userId)
+        private async Task RecalculateAllIncompleteTaskScores(int userId, bool useKnapsack = false)
         {
             var userTasks = await GetUserTasksAsync(userId);
             var incompleteTasks = userTasks.Where(t => t.Status != ModelsTaskStatus.Completed).ToList();
+
+            if (useKnapsack)
+            {
+                var taskScores = CalculateKnapsackScores(userTasks, incompleteTasks);
+
+                foreach (var task in incompleteTasks)
+                {
+                    task.Score = taskScores.TryGetValue(task.Id, out var score) ? score : 0.001;
+                    _context.Entry(task).State = EntityState.Modified;
+                }
+
+                await _context.SaveChangesAsync();
+                return;
+            }
 
             foreach (var task in incompleteTasks)
             {
@@ -140,6 +189,243 @@ namespace TaskTrackerAPI.Services
             }
 
             await _context.SaveChangesAsync();
+        }
+
+        private async Task<bool> IsIndividualProfileAsync(int userId)
+        {
+            var role = await _context.Users
+                .Where(user => user.UserId == userId)
+                .Select(user => user.Role)
+                .FirstOrDefaultAsync();
+
+            return role == UserRole.User;
+        }
+
+        public async Task<DailyScheduleResponse> GenerateDailyScheduleAsync(int userId, int availableMinutes)
+        {
+            if (availableMinutes <= 0)
+            {
+                return new DailyScheduleResponse
+                {
+                    UserId = userId,
+                    AvailableMinutes = 0,
+                    RemainingMinutes = 0
+                };
+            }
+
+            if (!await IsIndividualProfileAsync(userId))
+            {
+                return new DailyScheduleResponse
+                {
+                    UserId = userId,
+                    AvailableMinutes = availableMinutes,
+                    RemainingMinutes = availableMinutes
+                };
+            }
+
+            var userTasks = await GetUserTasksAsync(userId);
+            var incompleteTasks = userTasks
+                .Where(task => task.Status != ModelsTaskStatus.Completed)
+                .ToList();
+
+            if (incompleteTasks.Count == 0)
+            {
+                return new DailyScheduleResponse
+                {
+                    UserId = userId,
+                    AvailableMinutes = availableMinutes,
+                    RemainingMinutes = availableMinutes
+                };
+            }
+
+            var taskData = incompleteTasks.Select(task => new ScheduleCandidate
+            {
+                Task = task,
+                EstimatedMinutes = Math.Max(1, task.EstimatedMinutes ?? DefaultEstimatedMinutes),
+                Score = task.Score ?? CalculateExactPriorityScore(task, userTasks)
+            }).ToList();
+
+            var selectedIds = SolveScheduleKnapsack(taskData, availableMinutes);
+            var scheduledTasks = new List<DailyScheduleItem>();
+            var unscheduledTasks = new List<DailyScheduleItem>();
+            var plannedOrder = 1;
+            var scheduledMinutes = 0;
+
+            foreach (var item in taskData.OrderByDescending(x => x.Score).ThenBy(x => x.Task.DueDate ?? DateTime.MaxValue))
+            {
+                var scheduleItem = new DailyScheduleItem
+                {
+                    TaskId = item.Task.Id,
+                    Title = item.Task.Title,
+                    Description = item.Task.Description,
+                    DueDate = item.Task.DueDate,
+                    Priority = (int)item.Task.Priority,
+                    Status = (int)item.Task.Status,
+                    EstimatedMinutes = item.EstimatedMinutes,
+                    Score = Math.Round(item.Score, 4),
+                    PlannedOrder = 0
+                };
+
+                if (selectedIds.Contains(item.Task.Id))
+                {
+                    scheduleItem.PlannedOrder = plannedOrder++;
+                    scheduledTasks.Add(scheduleItem);
+                    scheduledMinutes += item.EstimatedMinutes;
+                }
+                else
+                {
+                    unscheduledTasks.Add(scheduleItem);
+                }
+            }
+
+            scheduledTasks = scheduledTasks
+                .OrderBy(item => item.DueDate ?? DateTime.MaxValue)
+                .ThenByDescending(item => item.Score)
+                .ToList();
+
+            for (var i = 0; i < scheduledTasks.Count; i++)
+            {
+                scheduledTasks[i].PlannedOrder = i + 1;
+            }
+
+            return new DailyScheduleResponse
+            {
+                UserId = userId,
+                AvailableMinutes = availableMinutes,
+                ScheduledMinutes = scheduledMinutes,
+                RemainingMinutes = Math.Max(0, availableMinutes - scheduledMinutes),
+                ScheduledTasks = scheduledTasks,
+                UnscheduledTasks = unscheduledTasks
+            };
+        }
+
+        private HashSet<int> SolveScheduleKnapsack(List<ScheduleCandidate> taskData, int availableMinutes)
+        {
+            var count = taskData.Count;
+            var capacity = availableMinutes;
+            var dp = new double[count + 1, capacity + 1];
+            var keep = new bool[count + 1, capacity + 1];
+
+            for (var i = 1; i <= count; i++)
+            {
+                int weight = taskData[i - 1].EstimatedMinutes;
+                double value = taskData[i - 1].Score;
+
+                for (var minutes = 0; minutes <= capacity; minutes++)
+                {
+                    var withoutTask = dp[i - 1, minutes];
+                    var withTask = minutes >= weight
+                        ? dp[i - 1, minutes - weight] + value
+                        : double.MinValue;
+
+                    if (withTask > withoutTask)
+                    {
+                        dp[i, minutes] = withTask;
+                        keep[i, minutes] = true;
+                    }
+                    else
+                    {
+                        dp[i, minutes] = withoutTask;
+                    }
+                }
+            }
+
+            var selectedTaskIds = new HashSet<int>();
+            var remainingMinutes = capacity;
+
+            for (var i = count; i >= 1 && remainingMinutes >= 0; i--)
+            {
+                if (keep[i, remainingMinutes])
+                {
+                    selectedTaskIds.Add(taskData[i - 1].Task.Id);
+                    remainingMinutes -= taskData[i - 1].EstimatedMinutes;
+                    if (remainingMinutes < 0)
+                    {
+                        remainingMinutes = 0;
+                    }
+                }
+            }
+
+            return selectedTaskIds;
+        }
+
+        private Dictionary<int, double> CalculateKnapsackScores(
+            List<PersonalTask> allUserTasks,
+            List<PersonalTask> incompleteTasks)
+        {
+            if (incompleteTasks.Count == 0)
+            {
+                return new Dictionary<int, double>();
+            }
+
+            var baseCap = Math.Min(IndividualKnapsackCapacity, incompleteTasks.Count);
+            var taskUtilities = incompleteTasks.ToDictionary(
+                task => task.Id,
+                task => CalculateExactPriorityScore(task, allUserTasks));
+
+            var selectedTaskIds = SolveKnapsackSelection(incompleteTasks, taskUtilities, baseCap);
+            var scores = new Dictionary<int, double>();
+
+            foreach (var task in incompleteTasks)
+            {
+                var utility = taskUtilities[task.Id];
+                var score = selectedTaskIds.Contains(task.Id)
+                    ? 0.5 + (utility * 0.5)
+                    : utility * 0.25;
+
+                scores[task.Id] = Math.Round(Math.Max(0.001, Math.Min(0.999, score)), 4);
+            }
+
+            return scores;
+        }
+
+        private HashSet<int> SolveKnapsackSelection(
+            List<PersonalTask> tasks,
+            Dictionary<int, double> utilities,
+            int capacity)
+        {
+            var count = tasks.Count;
+            var dp = new double[count + 1, capacity + 1];
+            var keep = new bool[count + 1, capacity + 1];
+
+            for (var i = 1; i <= count; i++)
+            {
+                var task = tasks[i - 1];
+                var value = utilities[task.Id];
+
+                for (var currentCapacity = 0; currentCapacity <= capacity; currentCapacity++)
+                {
+                    var withoutTask = dp[i - 1, currentCapacity];
+                    var withTask = currentCapacity >= 1
+                        ? dp[i - 1, currentCapacity - 1] + value
+                        : double.MinValue;
+
+                    if (withTask > withoutTask)
+                    {
+                        dp[i, currentCapacity] = withTask;
+                        keep[i, currentCapacity] = true;
+                    }
+                    else
+                    {
+                        dp[i, currentCapacity] = withoutTask;
+                    }
+                }
+            }
+
+            var selectedTaskIds = new HashSet<int>();
+            var remainingCapacity = capacity;
+
+            for (var i = count; i >= 1 && remainingCapacity >= 0; i--)
+            {
+                if (keep[i, remainingCapacity])
+                {
+                    var task = tasks[i - 1];
+                    selectedTaskIds.Add(task.Id);
+                    remainingCapacity--;
+                }
+            }
+
+            return selectedTaskIds;
         }
 
         // Calculate task score (ignores completed tasks)

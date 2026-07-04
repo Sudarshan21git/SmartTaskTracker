@@ -22,6 +22,10 @@ namespace TaskTrackerFrontend.Models
         [Display(Name = "Due Date")]
         public DateTime DueDate { get; set; } = DateTime.Now.AddDays(1);
 
+        [Range(1, 24 * 60, ErrorMessage = "Estimated time must be at least 1 minute")]
+        [Display(Name = "Estimated Minutes")]
+        public int EstimatedMinutes { get; set; } = 60;
+
         [Display(Name = "Status")]
         public int Status { get; set; } = 2; // Default Pending
     }
