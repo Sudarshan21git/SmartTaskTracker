@@ -1,0 +1,432 @@
+﻿@model TaskItem
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/Shared/_LayoutDashboard.cshtml";
+}
+@section Styles {
+    <style>
+        .date-error {
+            border-color: #dc2626 !important;
+        }
+    </style>
+}
+
+<!-- Main Content -->
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Edit Task</h1>
+        <p class="text-gray-600">Update your task details below</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="bg-white rounded-lg shadow-lg p-8 text-center">
+        <i class="fas fa-spinner fa-spin text-3xl text-blue-600 mb-4"></i>
+        <p class="text-gray-600">Loading task details...</p>
+    </div>
+
+    <!-- Edit Form -->
+    <div id="editForm" class="hidden bg-white rounded-lg shadow-lg border border-[#e5e5e5]">
+        <div class="p-6 border-b border-[#e5e5e5]">
+            <h2 class="text-xl font-bold text-gray-800">Edit Task Details</h2>
+            <p class="text-gray-600 text-sm mt-1">Task ID: <span id="taskIdDisplay" class="font-mono">-</span></p>
+        </div>
+
+        <form id="editTaskForm" class="p-6 space-y-6">
+            @Html.AntiForgeryToken()
+
+            <!-- Task Name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-800 mb-2">
+                    Task Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text"
+                       id="taskName"
+                       name="Title"
+                       placeholder="Enter task name"
+                       class="w-full px-4 py-3 border border-[#e5e5e5] rounded-lg bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                       required />
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="block text-sm font-medium text-gray-800 mb-2">Description</label>
+                <textarea id="taskDescription"
+                          name="Description"
+                          placeholder="Enter task description"
+                          class="w-full px-4 py-3 border border-[#e5e5e5] rounded-lg bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                          rows="4"></textarea>
+            </div>
+
+            <!-- Priority and Status -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-800 mb-2">Priority</label>
+                    <select id="taskPriority"
+                            name="Priority"
+                            class="w-full px-4 py-3 border border-[#e5e5e5] rounded-lg bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent">
+                        <option value="0">Low</option>
+                        <option value="1">Medium</option>
+                        <option value="2">High</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-800 mb-2">Status</label>
+                    <select id="taskStatus"
+                            name="Status"
+                            class="w-full px-4 py-3 border border-[#e5e5e5] rounded-lg bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent">
+                        <option value="0">Completed</option>
+                        <option value="1">In Progress</option>
+                        <option value="2">Pending</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Due Date -->
+            <div>
+                <label class="block text-sm font-medium text-gray-800 mb-2">
+                    Due Date <span class="text-red-500">*</span>
+                </label>
+                <input type="date"
+                       id="taskDueDate"
+                       name="DueDate"
+                       class="w-full px-4 py-3 border border-[#e5e5e5] rounded-lg bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                       required />
+                <p id="dateError" class="text-xs text-red-600 mt-1 hidden">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Due date cannot be before today
+                </p>
+                <p id="dateInfo" class="text-xs text-gray-500 mt-1">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Please select today or a future date
+                </p>
+            </div>
+
+            <!-- Created At (Readonly) -->
+            <div>
+                <label class="block text-sm font-medium text-gray-800 mb-2">Created At</label>
+                <input type="text"
+                       id="taskCreatedAt"
+                       class="w-full px-4 py-3 border border-[#e5e5e5] rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                       readonly />
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t border-[#e5e5e5]">
+                <a asp-controller="Dashboard" asp-action="Index"
+                   class="flex-1 px-6 py-3 border border-[#e5e5e5] rounded-lg text-gray-800 hover:bg-gray-50 transition-colors font-medium text-center">
+                    <i class="fas fa-times mr-2"></i>Cancel
+                </a>
+                <button type="button"
+                        onclick="handleDeleteTask()"
+                        class="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
+                    <i class="fas fa-trash mr-2"></i>Delete Task
+                </button>
+                <button type="submit"
+                        id="updateButton"
+                        class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    <i class="fas fa-save mr-2"></i>Update Task
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="hidden bg-white rounded-lg shadow-lg p-8 text-center">
+        <i class="fas fa-exclamation-triangle text-3xl text-red-600 mb-4"></i>
+        <h3 class="text-xl font-bold text-gray-800 mb-2">Task Not Found</h3>
+        <p class="text-gray-600 mb-6">The task you're trying to edit doesn't exist or you don't have permission to access it.</p>
+        <a asp-controller="Dashboard" asp-action="Index"
+           class="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black/50 items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md border border-[#e5e5e5] mx-4">
+        <div class="p-6 border-b border-[#e5e5e5]">
+            <h2 class="text-xl font-bold text-gray-800">Confirm Deletion</h2>
+        </div>
+        <div class="p-6">
+            <p class="text-gray-700 mb-6">Are you sure you want to delete this task? This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button type="button"
+                        onclick="closeDeleteModal()"
+                        class="flex-1 px-4 py-2 border border-[#e5e5e5] rounded-lg text-gray-800 hover:bg-gray-50 transition-colors font-medium">
+                    Cancel
+                </button>
+                <button type="button"
+                        onclick="confirmDeleteTask()"
+                        class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium">
+                    <i class="fas fa-trash mr-2"></i>Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Global variables
+        let currentTaskId = null;
+        let currentTask = null;
+
+        // ✅ Get task ID from URL
+        function getTaskIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
+
+        // ✅ Load task details
+        async function loadTaskDetails() {
+            const taskId = getTaskIdFromUrl();
+
+            if (!taskId) {
+                showErrorState('Invalid task ID');
+                return;
+            }
+
+            currentTaskId = taskId;
+            document.getElementById('taskIdDisplay').textContent = taskId;
+
+            try {
+                const response = await fetch(`${API_BASE}/tasks`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Find the specific task
+                    const task = result.data.find(t => {
+                        const taskIdNum = t.Id || t.id;
+                        return taskIdNum == taskId;
+                    });
+
+                    if (task) {
+                        currentTask = task;
+                        populateForm(task);
+                        setupDateValidation();
+                        showEditForm();
+                    } else {
+                        showErrorState('Task not found');
+                    }
+                } else {
+                    showErrorState('Failed to load task');
+                }
+            } catch (error) {
+                console.error('Error loading task:', error);
+                showErrorState('Failed to load task details');
+            }
+        }
+
+        // ✅ Setup date validation
+        function setupDateValidation() {
+            const dueDateInput = document.getElementById('taskDueDate');
+
+            // Set minimum date to today
+            const today = new Date().toISOString().split('T')[0];
+            dueDateInput.min = today;
+
+            // Validate date on input change
+            dueDateInput.addEventListener('change', function () {
+                validateDueDate();
+            });
+
+            // Initial validation
+            validateDueDate();
+        }
+
+        // ✅ Validate due date
+        function validateDueDate() {
+            const dueDateInput = document.getElementById('taskDueDate');
+            const dateError = document.getElementById('dateError');
+            const updateButton = document.getElementById('updateButton');
+            const selectedDate = dueDateInput.value;
+            const today = new Date().toISOString().split('T')[0];
+
+            if (selectedDate && selectedDate < today) {
+                // Date is before today
+                dueDateInput.classList.add('date-error', 'border-red-500');
+                dateError.classList.remove('hidden');
+                updateButton.disabled = true;
+                updateButton.classList.add('opacity-50', 'cursor-not-allowed');
+                return false;
+            } else {
+                // Date is valid
+                dueDateInput.classList.remove('date-error', 'border-red-500');
+                dateError.classList.add('hidden');
+                updateButton.disabled = false;
+                updateButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                return true;
+            }
+        }
+
+        // ✅ Populate form with task data
+        function populateForm(task) {
+            document.getElementById('taskName').value = task.Title || task.title || '';
+            document.getElementById('taskDescription').value = task.Description || task.description || '';
+            document.getElementById('taskPriority').value = task.Priority !== undefined ? task.Priority : (task.priority !== undefined ? task.priority : 1);
+            document.getElementById('taskStatus').value = task.Status !== undefined ? task.Status : (task.status !== undefined ? task.status : 0);
+
+            // Format dates
+            if (task.DueDate || task.dueDate) {
+                const dueDate = new Date(task.DueDate || task.dueDate);
+                document.getElementById('taskDueDate').value = dueDate.toISOString().split('T')[0];
+            }
+
+            if (task.CreatedAt || task.createdAt) {
+                const createdAt = new Date(task.CreatedAt || task.createdAt);
+                document.getElementById('taskCreatedAt').value = createdAt.toLocaleDateString() + ' ' + createdAt.toLocaleTimeString();
+            }
+        }
+
+        // ✅ Handle task update
+        async function handleUpdateTask(event) {
+            event.preventDefault();
+
+            // Validate due date first
+            if (!validateDueDate()) {
+                showError('Please select a valid due date (today or future)');
+                return;
+            }
+
+            const submitButton = event.target.querySelector('button[type="submit"]');
+
+            try {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+
+                // Get form values
+                const taskName = document.getElementById("taskName").value.trim();
+                const taskDescription = document.getElementById("taskDescription").value.trim();
+                const taskDueDate = document.getElementById("taskDueDate").value;
+                const taskStatus = parseInt(document.getElementById("taskStatus").value);
+                const taskPriority = parseInt(document.getElementById("taskPriority").value);
+
+                if (!taskName) {
+                    showError('Task name is required');
+                    return;
+                }
+
+                if (!taskDueDate) {
+                    showError('Due date is required');
+                    return;
+                }
+
+                const updatedTask = {
+                    Id: parseInt(currentTaskId),
+                    Title: taskName,
+                    Description: taskDescription || null,
+                    DueDate: taskDueDate,
+                    Status: taskStatus,
+                    Priority: taskPriority,
+                    UserId: currentTask.UserId || currentTask.userId
+                };
+
+                const response = await fetch(`${API_BASE}/tasks/${currentTaskId}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(updatedTask)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        showSuccess('Task updated successfully!');
+                        setTimeout(() => {
+                            window.location.href = '/Dashboard/Index';
+                        }, 1500);
+                    } else {
+                        showError('Failed to update task: ' + (result.message || 'Unknown error'));
+                    }
+                } else {
+                    showError('Failed to update task. Server returned: ' + response.status);
+                }
+            } catch (error) {
+                console.error('Error updating task:', error);
+                showError('Network error: ' + error.message);
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="fas fa-save mr-2"></i>Update Task';
+            }
+        }
+
+        // ✅ Handle task deletion
+        function handleDeleteTask() {
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('deleteModal').style.display = 'flex';
+        }
+
+        // ✅ Confirm task deletion
+        async function confirmDeleteTask() {
+            try {
+                const response = await fetch(`${API_BASE}/tasks/${currentTaskId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess('Task deleted successfully!');
+                    closeDeleteModal();
+                    setTimeout(() => {
+                        window.location.href = '/Dashboard/Index';
+                    }, 1500);
+                } else {
+                    showError('Failed to delete task: ' + result.message);
+                    closeDeleteModal();
+                }
+            } catch (error) {
+                console.error('Error deleting task:', error);
+                showError('Error deleting task');
+                closeDeleteModal();
+            }
+        }
+
+        // ✅ Close delete modal
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        // ✅ UI State Management
+        function showLoadingState() {
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('editForm').classList.add('hidden');
+            document.getElementById('errorState').classList.add('hidden');
+        }
+
+        function showEditForm() {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('editForm').classList.remove('hidden');
+            document.getElementById('errorState').classList.add('hidden');
+        }
+
+        function showErrorState(message) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('editForm').classList.add('hidden');
+            document.getElementById('errorState').classList.remove('hidden');
+
+            if (message) {
+                document.querySelector('#errorState p').textContent = message;
+            }
+        }
+
+        // ✅ Initialize page
+        document.addEventListener("DOMContentLoaded", async function() {
+            await loadTaskDetails();
+
+            // Setup form submit handler
+            document.getElementById('editTaskForm').addEventListener('submit', handleUpdateTask);
+        });
+    </script>
+}

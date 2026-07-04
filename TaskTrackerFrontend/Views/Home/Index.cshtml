@@ -1,0 +1,60 @@
+﻿@{
+    ViewData["Title"] = "Home";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<!-- Hero Section -->
+<section class="hero-section text-white py-20">
+    <div class="custom-container py-12">
+        <div class="flex flex-col lg:flex-row items-center">
+            <div class="w-full lg:w-1/2 mb-8 lg:mb-0">
+                <h1 class="text-4xl lg:text-5xl font-bold mb-6">Smart Task Tracker</h1>
+                <p class="text-xl mb-8">Intelligent task management with productivity insights. Manage your tasks efficiently with smart priority algorithms and detailed analytics.</p>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a asp-controller="Account" asp-action="Register" class="custom-btn custom-btn-light px-6 py-3 text-lg font-medium">Get Started</a>
+                    <a asp-controller="Home" asp-action="About" class="custom-btn custom-btn-outline-light px-6 py-3 text-lg font-medium">Learn More</a>
+                </div>
+            </div>
+            <div class="w-full lg:w-1/2 text-center">
+                <div class="p-4">
+                    <div class="text-8xl">📊</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-16">
+    <div class="custom-container">
+        <div class="text-center mb-12">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">Why Choose Smart Task Tracker?</h2>
+            <p class="text-xl text-gray-600">Powerful features to boost your productivity</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="custom-card p-6 text-center">
+                <div class="text-5xl mb-4">⚡</div>
+                <h5 class="text-xl font-bold text-gray-800 mb-3">Smart Priority</h5>
+                <p class="text-gray-600">Automatic task prioritization using intelligent algorithms based on deadline and importance.</p>
+            </div>
+            <div class="custom-card p-6 text-center">
+                <div class="text-5xl mb-4">📈</div>
+                <h5 class="text-xl font-bold text-gray-800 mb-3">Productivity Insights</h5>
+                <p class="text-gray-600">Track your performance with detailed analytics and get improvement suggestions.</p>
+            </div>
+            <div class="custom-card p-6 text-center">
+                <div class="text-5xl mb-4">👥</div>
+                <h5 class="text-xl font-bold text-gray-800 mb-3">User Friendly</h5>
+                <p class="text-gray-600">Simple and intuitive interface designed for both individual users and teams.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Call to Action -->
+<section class="bg-light py-16">
+    <div class="custom-container text-center">
+        <h3 class="text-2xl font-bold text-gray-800 mb-4">Ready to Boost Your Productivity?</h3>
+        <p class="text-xl text-gray-600 mb-8">Start managing your tasks intelligently today</p>
+        <a asp-controller="Account" asp-action="Register" class="custom-btn custom-btn-primary px-8 py-3 text-lg font-medium">Start Now - It's Free</a>
+    </div>
+</section>

@@ -1,0 +1,231 @@
+@{
+    ViewData["Title"] = "Employees";
+    Layout = "~/Views/Shared/_LayoutDashboard.cshtml";
+}
+
+<div class="max-w-7xl mx-auto">
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Team Roster</h1>
+            <p class="text-sm text-gray-500">Manage your organization's employees.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="loadOrganizationEmployees()" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                <i class="fas fa-sync-alt mr-2"></i>Refresh
+            </button>
+            <a href="@Url.Action("Create", "OrgEmployees")" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
+                <i class="fas fa-plus mr-2"></i>Add Employee
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <p class="text-sm font-medium text-gray-600">Total Employees</p>
+            <h3 class="mt-2 text-3xl font-bold text-gray-900" id="totalEmployees">--</h3>
+        </div>
+        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <p class="text-sm font-medium text-gray-600">Active</p>
+            <h3 class="mt-2 text-3xl font-bold text-emerald-600" id="activeEmployees">--</h3>
+        </div>
+        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <p class="text-sm font-medium text-gray-600">Recent Hires (7d)</p>
+            <h3 class="mt-2 text-3xl font-bold text-blue-600" id="recentHires">--</h3>
+        </div>
+        <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <p class="text-sm font-medium text-gray-600">Inactive</p>
+            <h3 class="mt-2 text-3xl font-bold text-rose-600" id="inactiveEmployees">--</h3>
+        </div>
+    </div>
+
+    <div class="rounded-2xl border border-gray-200 bg-white shadow-sm mb-8">
+        <div class="flex items-center justify-between border-b border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-900">All Employees</h2>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50 text-left text-gray-600">
+                        <th class="px-6 py-4 font-semibold">Name</th>
+                        <th class="px-6 py-4 font-semibold">Department</th>
+                        <th class="px-6 py-4 font-semibold">Position</th>
+                        <th class="px-6 py-4 font-semibold">Code</th>
+                        <th class="px-6 py-4 font-semibold">Status</th>
+                        <th class="px-6 py-4 font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="employeeTableBody">
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                            <p>Loading employees...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<input type="hidden" id="organizationAuthToken" value="@Context.Session.GetString("Token")" />
+
+@section Scripts {
+    <script>
+        const organizationAuthToken = document.getElementById('organizationAuthToken')?.value || (typeof authToken !== 'undefined' ? authToken : '');
+        let organizationEmployees = [];
+
+        function getOrganizationHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${organizationAuthToken}`
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!organizationAuthToken) {
+                alert('Session expired. Redirecting to login...');
+                window.location.href = '/Account/Login';
+                return;
+            }
+
+            await loadOrganizationEmployees();
+        });
+
+        async function loadOrganizationEmployees() {
+            const tableBody = document.getElementById('employeeTableBody');
+
+            try {
+                // Fetch from the API endpoint that OrganizationDashboard uses
+                const response = await fetch(`${API_BASE}/organization/employees`, {
+                    method: 'GET',
+                    headers: getOrganizationHeaders()
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || `HTTP error ${response.status}`);
+                }
+
+                const employees = await response.json();
+                organizationEmployees = Array.isArray(employees) ? employees : [];
+
+                updateOrganizationStatistics(organizationEmployees);
+                displayOrganizationEmployees(organizationEmployees);
+            }
+            catch (error) {
+                console.error('Error loading organization employees:', error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                            <p class="font-medium text-lg mb-2">Failed to load employees</p>
+                            <p class="text-sm text-gray-600">${error.message}</p>
+                            <button onclick="loadOrganizationEmployees()" class="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
+                                <i class="fas fa-redo mr-2"></i>Retry
+                            </button>
+                        </td>
+                    </tr>`;
+                showError('Failed to load employees');
+            }
+        }
+
+        function updateOrganizationStatistics(employees) {
+            const totalEmployees = employees.length;
+            const activeEmployees = employees.filter(employee => employee.isActive ?? employee.IsActive).length;
+            const recentHires = employees.filter(employee => {
+                const createdAt = new Date(employee.createdAt ?? employee.CreatedAt);
+                const ageInDays = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+                return ageInDays <= 7;
+            }).length;
+
+            document.getElementById('totalEmployees').textContent = totalEmployees;
+            document.getElementById('activeEmployees').textContent = activeEmployees;
+            document.getElementById('recentHires').textContent = recentHires;
+            document.getElementById('inactiveEmployees').textContent = Math.max(totalEmployees - activeEmployees, 0);
+        }
+
+        function displayOrganizationEmployees(employees) {
+            const tableBody = document.getElementById('employeeTableBody');
+
+            if (!employees || employees.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                            <i class="fas fa-users text-4xl mb-4 text-gray-300"></i>
+                            <p class="font-medium text-gray-600 text-lg mb-2">No employees yet</p>
+                            <p class="text-sm text-gray-500 mb-4">Use the Add Employee button to build your team.</p>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = employees.map(employee => {
+                const isActive = employee.isActive ?? employee.IsActive;
+                return `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="font-medium text-gray-900">${employee.fullName ?? employee.FullName ?? 'Unknown'}</div>
+                            <div class="text-xs text-gray-500 mt-1">${employee.email ?? employee.Email ?? ''}</div>
+                        </td>
+                        <td class="px-6 py-4 text-gray-600">${employee.department ?? employee.Department ?? 'Unassigned'}</td>
+                        <td class="px-6 py-4 text-gray-600">${employee.position ?? employee.Position ?? 'N/A'}</td>
+                        <td class="px-6 py-4 text-gray-600 font-mono text-xs">${employee.employeeCode ?? employee.EmployeeCode ?? 'N/A'}</td>
+                        <td class="px-6 py-4">
+                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold ${isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+                                ${isActive ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            ${isActive ? `
+                                <button onclick="deactivateEmployee(${employee.employeeId ?? employee.EmployeeId})" class="p-2 hover:bg-red-50 rounded-lg text-red-600 transition-colors" title="Deactivate">
+                                    <i class="fas fa-ban"></i>
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        async function deactivateEmployee(id) {
+            if (!confirm('Are you sure you want to deactivate this employee? They will no longer be able to log in.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/organization/employees/${id}/deactivate`, {
+                    method: 'PATCH',
+                    headers: getOrganizationHeaders()
+                });
+
+                if (response.ok) {
+                    showSuccess('Employee deactivated successfully');
+                    await loadOrganizationEmployees(); // Reload the list
+                } else {
+                    const result = await response.json();
+                    showError(result.message || 'Failed to deactivate employee');
+                }
+            } catch (error) {
+                console.error('Error deactivating employee:', error);
+                showError('Error connecting to server');
+            }
+        }
+
+        function showSuccess(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-20 right-4 z-50 flex items-center gap-2 rounded-lg bg-green-500 px-6 py-3 text-white shadow-lg';
+            toast.innerHTML = `<i class="fas fa-check-circle"></i><span>${message}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function showError(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-20 right-4 z-50 flex items-center gap-2 rounded-lg bg-red-500 px-6 py-3 text-white shadow-lg';
+            toast.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${message}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+    </script>
+}

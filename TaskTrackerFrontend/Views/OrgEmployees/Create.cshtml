@@ -1,0 +1,130 @@
+@model TaskTrackerFrontend.Models.CreateEmployeeModel
+@{
+    ViewData["Title"] = "Add Employee";
+    Layout = "~/Views/Shared/_LayoutDashboard.cshtml";
+}
+
+<div class="max-w-2xl mx-auto">
+
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="@Url.Action("Index", "OrganizationDashboard")"
+           class="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1 mb-4">
+            ← Back to Dashboard
+        </a>
+        <h1 class="text-3xl font-bold text-gray-800">Add New Employee</h1>
+        <p class="text-gray-500 mt-1">
+            Employee will receive a temporary password to login.
+        </p>
+    </div>
+
+    <!-- Success Message -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+            <p class="font-medium">✅ @TempData["SuccessMessage"]</p>
+        </div>
+    }
+
+    <!-- Form -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-8">
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                @foreach (var error in ViewData.ModelState.Values
+                            .SelectMany(v => v.Errors))
+                {
+                    <p class="text-red-700 text-sm">⚠ @error.ErrorMessage</p>
+                }
+            </div>
+        }
+
+        <form asp-action="Create" method="post" class="space-y-5">
+            @Html.AntiForgeryToken()
+
+            <!-- Name Row -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label asp-for="FirstName"
+                           class="block text-sm font-medium text-gray-700 mb-1">
+                        First Name <span class="text-red-500">*</span>
+                    </label>
+                    <input asp-for="FirstName" placeholder="John"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg
+                                  focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <span asp-validation-for="FirstName"
+                          class="text-red-600 text-sm mt-1 block"></span>
+                </div>
+                <div>
+                    <label asp-for="LastName"
+                           class="block text-sm font-medium text-gray-700 mb-1">
+                        Last Name <span class="text-red-500">*</span>
+                    </label>
+                    <input asp-for="LastName" placeholder="Doe"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg
+                                  focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <span asp-validation-for="LastName"
+                          class="text-red-600 text-sm mt-1 block"></span>
+                </div>
+            </div>
+
+            <!-- Email -->
+            <div>
+                <label asp-for="Email"
+                       class="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address <span class="text-red-500">*</span>
+                </label>
+                <input asp-for="Email" type="email" placeholder="employee@example.com"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg
+                              focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <span asp-validation-for="Email"
+                      class="text-red-600 text-sm mt-1 block"></span>
+            </div>
+
+            <!-- Department + Position -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label asp-for="Department"
+                           class="block text-sm font-medium text-gray-700 mb-1">
+                        Department
+                    </label>
+                    <input asp-for="Department" placeholder="e.g. Engineering"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg
+                                  focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                    <label asp-for="Position"
+                           class="block text-sm font-medium text-gray-700 mb-1">
+                        Position
+                    </label>
+                    <input asp-for="Position" placeholder="e.g. Developer"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg
+                                  focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                <p class="text-blue-700 text-sm">
+                    ℹ️ A temporary password will be generated automatically.
+                    Share it with the employee so they can login and set a new password.
+                </p>
+            </div>
+
+            <!-- Submit -->
+            <div class="flex gap-3 pt-2">
+                <button type="submit"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white
+                               font-semibold py-3 rounded-lg transition">
+                    Create Employee Account
+                </button>
+                <a href="@Url.Action("Index", "OrganizationDashboard")"
+                   class="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg
+                          hover:bg-gray-200 transition font-medium text-center">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>

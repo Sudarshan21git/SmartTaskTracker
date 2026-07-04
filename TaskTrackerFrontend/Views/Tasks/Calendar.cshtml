@@ -1,0 +1,444 @@
+﻿@model IEnumerable<TaskItem>
+@{
+    ViewData["Title"] = "Calendar";
+    Layout = "~/Views/Shared/_LayoutDashboard.cshtml";
+}
+
+@section Styles {
+    <style>
+        .calendar-day {
+            min-height: 80px;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+            .calendar-day:hover {
+                background-color: #f3f4f6;
+                transform: translateY(-2px);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .calendar-day.today {
+                background-color: #2563eb;
+                color: white;
+                font-weight: bold;
+            }
+
+            .calendar-day.has-tasks {
+                background-color: #fef3c7;
+            }
+
+            .calendar-day.today.has-tasks {
+                background-color: #1e40af;
+            }
+
+        .task-indicator {
+            display: flex;
+            gap: 2px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .task-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+            .task-dot.high {
+                background-color: #ef4444;
+            }
+
+            .task-dot.medium {
+                background-color: #f59e0b;
+            }
+
+            .task-dot.low {
+                background-color: #10b981;
+            }
+
+        .calendar-day.today .task-dot {
+            background-color: white;
+        }
+
+        .task-count {
+            font-size: 0.75rem;
+            margin-top: 4px;
+            padding: 2px 6px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        .calendar-day.today .task-count {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .empty-day {
+            color: #d1d5db;
+        }
+    </style>
+}
+
+<!-- Main Content -->
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
+        <div class="mb-4 lg:mb-0">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Calendar</h1>
+            <p class="text-gray-600">View your tasks by due date</p>
+        </div>
+
+        <button onclick="openModal()" class="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+            <i class="fas fa-plus mr-2"></i>Add New Task
+        </button>
+    </div>
+
+    <!-- Calendar Container -->
+    <div class="bg-white rounded-lg border border-[#e5e5e5] shadow-sm p-6">
+
+        <!-- Month Navigation -->
+        <div class="flex justify-between items-center mb-6">
+            <button onclick="changeMonth(-1)" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <i class="fas fa-chevron-left text-gray-600"></i>
+            </button>
+
+            <h2 id="monthYear" class="text-2xl font-bold text-gray-800"></h2>
+
+            <button onclick="changeMonth(1)" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <i class="fas fa-chevron-right text-gray-600"></i>
+            </button>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex flex-wrap gap-4 mb-6 pb-4 border-b border-gray-200">
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 bg-blue-600 rounded"></div>
+                <span class="text-sm text-gray-600">Today</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 bg-yellow-100 border border-yellow-200 rounded"></div>
+                <span class="text-sm text-gray-600">Has Tasks</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span class="text-sm text-gray-600">High Priority</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 bg-amber-500 rounded-full"></div>
+                <span class="text-sm text-gray-600">Medium Priority</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span class="text-sm text-gray-600">Low Priority</span>
+            </div>
+        </div>
+
+        <!-- Weekday Headers -->
+        <div class="grid grid-cols-7 gap-2 text-center text-sm font-semibold text-gray-600 mb-3">
+            <div class="py-2">Sun</div>
+            <div class="py-2">Mon</div>
+            <div class="py-2">Tue</div>
+            <div class="py-2">Wed</div>
+            <div class="py-2">Thu</div>
+            <div class="py-2">Fri</div>
+            <div class="py-2">Sat</div>
+        </div>
+
+        <!-- Calendar Days -->
+        <div id="calendarDays" class="grid grid-cols-7 gap-2"></div>
+    </div>
+
+    <!-- Tasks for Selected Date Modal/Panel -->
+    <div id="taskDetailsPanel" class="hidden mt-6 bg-white rounded-lg border border-[#e5e5e5] shadow-sm p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800">
+                Tasks for <span id="selectedDate"></span>
+            </h3>
+            <button onclick="closeTaskDetails()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="taskDetailsList" class="space-y-3"></div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Calendar variables
+        let currentDate = new Date();
+        let allTasks = [];
+
+        // Load tasks and render calendar on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('Calendar page loaded');
+            await loadTasks();
+            renderCalendar();
+        });
+
+        // Load all tasks from API
+        async function loadTasks() {
+            try {
+                const url = `${API_BASE}/tasks/user/${userId}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                // Handle different response formats
+                if (result.success && result.data) {
+                    allTasks = result.data;
+                } else if (result.success && result.tasks) {
+                    allTasks = result.tasks;
+                } else if (Array.isArray(result)) {
+                    allTasks = result;
+                }
+
+                console.log('Tasks loaded:', allTasks.length);
+            } catch (error) {
+                console.error('Error loading tasks:', error);
+                showError('Failed to load tasks');
+            }
+        }
+
+        // Render calendar
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const today = new Date();
+
+            // Update month/year display
+            document.getElementById("monthYear").innerText =
+                currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+            // Get first day of month and total days
+            const firstDay = new Date(year, month, 1).getDay();
+            const totalDays = new Date(year, month + 1, 0).getDate();
+
+            const calendar = document.getElementById("calendarDays");
+            calendar.innerHTML = "";
+
+            // Empty cells before first day
+            for (let i = 0; i < firstDay; i++) {
+                calendar.innerHTML += '<div class="empty-day"></div>';
+            }
+
+            // Render each day
+            for (let day = 1; day <= totalDays; day++) {
+                const date = new Date(year, month, day);
+                const dateStr = date.toISOString().split('T')[0];
+
+                // Check if it's today
+                const isToday =
+                    day === today.getDate() &&
+                    month === today.getMonth() &&
+                    year === today.getFullYear();
+
+                // Get tasks for this date
+                const tasksForDate = allTasks.filter(task => {
+                    if (!task.dueDate) return false;
+                    const taskDate = new Date(task.dueDate).toISOString().split('T')[0];
+                    return taskDate === dateStr;
+                });
+
+                const hasTasks = tasksForDate.length > 0;
+
+                // Build task indicators
+                let taskIndicators = '';
+                if (hasTasks) {
+                    const priorityCounts = {
+                        high: tasksForDate.filter(t => t.priority === 2).length,
+                        medium: tasksForDate.filter(t => t.priority === 1).length,
+                        low: tasksForDate.filter(t => t.priority === 0).length
+                    };
+
+                    taskIndicators = '<div class="task-indicator">';
+
+                    // Add dots for each priority (max 5 dots to avoid overflow)
+                    let dotsAdded = 0;
+                    const maxDots = 5;
+
+                    for (let i = 0; i < priorityCounts.high && dotsAdded < maxDots; i++) {
+                        taskIndicators += '<div class="task-dot high"></div>';
+                        dotsAdded++;
+                    }
+                    for (let i = 0; i < priorityCounts.medium && dotsAdded < maxDots; i++) {
+                        taskIndicators += '<div class="task-dot medium"></div>';
+                        dotsAdded++;
+                    }
+                    for (let i = 0; i < priorityCounts.low && dotsAdded < maxDots; i++) {
+                        taskIndicators += '<div class="task-dot low"></div>';
+                        dotsAdded++;
+                    }
+
+                    taskIndicators += '</div>';
+
+                    if (tasksForDate.length > maxDots) {
+                        taskIndicators += `<div class="task-count">+${tasksForDate.length - maxDots} more</div>`;
+                    } else if (tasksForDate.length <= 3) {
+                        taskIndicators += `<div class="task-count">${tasksForDate.length}</div>`;
+                    }
+                }
+
+                const dayClass = `calendar-day ${isToday ? 'today' : ''} ${hasTasks ? 'has-tasks' : ''}`;
+
+                calendar.innerHTML += `
+                    <div class="${dayClass}" onclick="showTasksForDate('${dateStr}')">
+                        <div class="font-semibold">${day}</div>
+                        ${taskIndicators}
+                    </div>
+                `;
+            }
+        }
+
+        // Show tasks for selected date
+        function showTasksForDate(dateStr) {
+            const date = new Date(dateStr);
+            const tasksForDate = allTasks.filter(task => {
+                if (!task.dueDate) return false;
+                const taskDate = new Date(task.dueDate).toISOString().split('T')[0];
+                return taskDate === dateStr;
+            });
+
+            if (tasksForDate.length === 0) {
+                showInfo('No tasks scheduled for this date');
+                return;
+            }
+
+            // Format date for display
+            const formattedDate = date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            document.getElementById('selectedDate').textContent = formattedDate;
+
+            // Build task list
+            const taskList = document.getElementById('taskDetailsList');
+            taskList.innerHTML = tasksForDate.map(task => `
+                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-start justify-between mb-2">
+                        <h4 class="font-semibold text-gray-900">${task.title || 'Untitled Task'}</h4>
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${getStatusClass(task.status)}">
+                            ${getStatusText(task.status)}
+                        </span>
+                    </div>
+
+                    ${task.description ? `
+                        <p class="text-sm text-gray-600 mb-2">${task.description}</p>
+                    ` : ''}
+
+                    <div class="flex items-center gap-2 text-xs text-gray-500">
+                        <span class="px-2 py-1 rounded ${getPriorityClass(task.priority)}">
+                            ${getPriorityText(task.priority)} Priority
+                        </span>
+                    </div>
+
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="editTask(${task.id})"
+                                class="flex-1 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </button>
+                        <button onclick="deleteTask(${task.id})"
+                                class="flex-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium">
+                            <i class="fas fa-trash mr-1"></i>Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('taskDetailsPanel').classList.remove('hidden');
+        }
+
+        // Close task details panel
+        function closeTaskDetails() {
+            document.getElementById('taskDetailsPanel').classList.add('hidden');
+        }
+
+        // Change month
+        function changeMonth(step) {
+            currentDate.setMonth(currentDate.getMonth() + step);
+            renderCalendar();
+            closeTaskDetails();
+        }
+
+        // Edit task
+        function editTask(taskId) {
+            window.location.href = `/Tasks/Edit?id=${taskId}`;
+        }
+
+        // Delete task
+        async function deleteTask(taskId) {
+            if (!confirm('Are you sure you want to delete this task?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess('Task deleted successfully!');
+                    await loadTasks();
+                    renderCalendar();
+                    closeTaskDetails();
+                } else {
+                    showError(result.message || 'Failed to delete task');
+                }
+            } catch (error) {
+                console.error('Error deleting task:', error);
+                showError('Error deleting task');
+            }
+        }
+
+        // Helper functions
+        function getStatusText(status) {
+            switch(status) {
+                case 0: return 'Completed';
+                case 1: return 'In Progress';
+                case 2: return 'Pending';
+                default: return 'Unknown';
+            }
+        }
+
+        function getStatusClass(status) {
+            switch(status) {
+                case 0: return 'bg-green-100 text-green-800';
+                case 1: return 'bg-blue-100 text-blue-800';
+                case 2: return 'bg-gray-100 text-gray-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        function getPriorityText(priority) {
+            switch(priority) {
+                case 2: return 'High';
+                case 1: return 'Medium';
+                case 0: return 'Low';
+                default: return 'Unknown';
+            }
+        }
+
+        function getPriorityClass(priority) {
+            switch(priority) {
+                case 2: return 'bg-red-100 text-red-800';
+                case 1: return 'bg-yellow-100 text-yellow-800';
+                case 0: return 'bg-green-100 text-green-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+    </script>
+}

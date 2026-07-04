@@ -1,0 +1,300 @@
+﻿@model TaskTrackerFrontend.Models.SettingsViewModel
+@{
+    ViewData["Title"] = "Profile Settings";
+    Layout = "~/Views/Shared/_LayoutDashboard.cshtml";
+}
+
+@section Styles {
+    <style>
+        .success-message {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .error-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .field-validation-error {
+            color: #dc2626;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+
+        .input-validation-error {
+            border-color: #dc2626 !important;
+            background-color: #fef2f2 !important;
+        }
+
+        .field-validation-valid {
+            display: none;
+        }
+    </style>
+}
+
+<!-- Settings Page Content -->
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Profile Settings</h1>
+        <p class="text-gray-600">Manage your account information and security settings</p>
+    </div>
+
+    <!-- Messages Container -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="mb-6 p-4 rounded-lg success-message">
+            <i class="fas fa-check-circle mr-2"></i>
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="mb-6 p-4 rounded-lg error-message">
+            <i class="fas fa-exclamation-circle mr-2"></i>
+            @TempData["Error"]
+        </div>
+    }
+
+    @if (TempData["Warning"] != null)
+    {
+        <div class="mb-6 p-4 rounded-lg bg-yellow-50 text-yellow-800 border border-yellow-200">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            @TempData["Warning"]
+        </div>
+    }
+
+    <!-- Profile Information Card - SEPARATE FORM -->
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm mb-8">
+        <div class="p-6 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                <i class="fas fa-user-circle mr-3 text-blue-600"></i>
+                Profile Information
+            </h3>
+        </div>
+
+        <div class="p-6">
+            <!-- ONLY PROFILE FORM - INDEPENDENT -->
+            <form asp-action="UpdateProfile" asp-controller="Settings" method="post" class="space-y-6" id="profileForm">
+                @Html.AntiForgeryToken()
+
+                <!-- Hidden field for UserId -->
+                <input type="hidden" name="UserId" value="@Model.UserProfile.UserId" />
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-800 mb-2">
+                            <i class="fas fa-user mr-2 text-gray-500"></i>
+                            First Name
+                        </label>
+                        <input name="FirstName"
+                               value="@Model.UserProfile.FirstName"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                               placeholder="Enter your first name"
+                               required />
+                        <span asp-validation-for="UserProfile.FirstName" class="field-validation-error"></span>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-800 mb-2">
+                            <i class="fas fa-user mr-2 text-gray-500"></i>
+                            Last Name
+                        </label>
+                        <input name="LastName"
+                               value="@Model.UserProfile.LastName"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                               placeholder="Enter your last name"
+                               required />
+                        <span asp-validation-for="UserProfile.LastName" class="field-validation-error"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-800 mb-2">
+                        <i class="fas fa-envelope mr-2 text-gray-500"></i>
+                        Email Address
+                    </label>
+                    <input name="Email"
+                           value="@Model.UserProfile.Email"
+                           type="email"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                           placeholder="Enter your email address"
+                           required />
+                    <span asp-validation-for="UserProfile.Email" class="field-validation-error"></span>
+                </div>
+
+                <button type="submit"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center">
+                    <i class="fas fa-save mr-2"></i>
+                    Update Profile
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Card - SEPARATE FORM -->
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+        <div class="p-6 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                <i class="fas fa-key mr-3 text-yellow-600"></i>
+                Change Password
+            </h3>
+        </div>
+
+        <div class="p-6">
+            <!-- ONLY PASSWORD FORM - INDEPENDENT -->
+            <form asp-action="ChangePassword" asp-controller="Settings" method="post" class="space-y-6" id="passwordForm">
+                @Html.AntiForgeryToken()
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-800 mb-2">
+                        <i class="fas fa-lock mr-2 text-gray-500"></i>
+                        Current Password
+                    </label>
+                    <input name="CurrentPassword"
+                           type="password"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                           placeholder="Enter your current password"
+                           required />
+                    <span asp-validation-for="ChangePassword.CurrentPassword" class="field-validation-error"></span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-800 mb-2">
+                            <i class="fas fa-key mr-2 text-gray-500"></i>
+                            New Password
+                        </label>
+                        <input name="NewPassword"
+                               type="password"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                               placeholder="Enter new password"
+                               minlength="6"
+                               required />
+                        <div class="mt-1 text-sm text-gray-500">
+                            Must be at least 6 characters
+                        </div>
+                        <span asp-validation-for="ChangePassword.NewPassword" class="field-validation-error"></span>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-800 mb-2">
+                            <i class="fas fa-check-circle mr-2 text-gray-500"></i>
+                            Confirm Password
+                        </label>
+                        <input name="ConfirmPassword"
+                               type="password"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                               placeholder="Confirm new password"
+                               minlength="6"
+                               required />
+                        <span asp-validation-for="ChangePassword.ConfirmPassword" class="field-validation-error"></span>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-4 pt-4">
+                    <button type="reset"
+                            class="px-6 py-3 border border-gray-300 rounded-lg text-gray-800 hover:bg-gray-50 transition-colors font-medium flex items-center">
+                        <i class="fas fa-times mr-2"></i>
+                        Clear
+                    </button>
+                    <button type="submit"
+                            class="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium flex items-center">
+                        <i class="fas fa-key mr-2"></i>
+                        Change Password
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Account Info Card -->
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm mt-8">
+        <div class="p-6 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-800 flex items-center">
+                <i class="fas fa-info-circle mr-3 text-green-600"></i>
+                Account Information
+            </h3>
+        </div>
+
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-500 mb-1">Account Created</label>
+                    <p class="text-lg font-medium text-gray-800">
+                        @if (Model?.UserProfile?.CreatedAt != null && Model.UserProfile.CreatedAt != default(DateTime))
+                        {
+                            @Model.UserProfile.CreatedAt.ToString("MMMM dd, yyyy")
+                        }
+                        else
+                        {
+                            <span class="text-gray-400">Not available</span>
+                        }
+                    </p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-500 mb-1">User Role</label>
+                    <p class="text-lg font-medium text-gray-800">
+                        @if (!string.IsNullOrEmpty(Model?.UserProfile?.Role))
+                        {
+                            @Model.UserProfile.Role
+                        }
+                        else
+                        {
+                            <span class="text-gray-400">User</span>
+                        }
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validation-unobtrusive/4.0.0/jquery.validate.unobtrusive.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            console.log('✅ Settings page loaded - Two independent forms');
+
+            // Enable client-side validation for BOTH forms independently
+            $.validator.unobtrusive.parse('#profileForm');
+            $.validator.unobtrusive.parse('#passwordForm');
+
+            // Profile form validation styling
+            $('#profileForm').validate({
+                errorClass: 'field-validation-error',
+                validClass: 'field-validation-valid',
+                errorElement: 'span',
+                highlight: function(element) {
+                    $(element).addClass('input-validation-error');
+                },
+                unhighlight: function(element) {
+                    $(element).removeClass('input-validation-error');
+                }
+            });
+
+            // Password form validation styling
+            $('#passwordForm').validate({
+                errorClass: 'field-validation-error',
+                validClass: 'field-validation-valid',
+                errorElement: 'span',
+                highlight: function(element) {
+                    $(element).addClass('input-validation-error');
+                },
+                unhighlight: function(element) {
+                    $(element).removeClass('input-validation-error');
+                }
+            });
+
+            console.log('✅ Validation initialized for both forms independently');
+        });
+    </script>
+}
